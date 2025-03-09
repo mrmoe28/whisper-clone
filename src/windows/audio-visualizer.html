@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Visualizer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .visualizer-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        canvas {
+            width: 100%;
+            height: 200px;
+            background-color: #111;
+            border-radius: 8px;
+        }
+        .transcription {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            min-height: 100px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .confidence {
+            margin-top: 10px;
+            height: 5px;
+            background-color: #333;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .confidence-bar {
+            height: 100%;
+            width: 0%;
+            background-color: #0071e3;
+            transition: width 0.3s ease;
+        }
+        .status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #999;
+        }
+        .status.recording {
+            color: #ff3b30;
+        }
+        .word {
+            display: inline-block;
+            margin-right: 5px;
+            transition: opacity 0.3s ease;
+        }
+        .word.low-confidence {
+            opacity: 0.6;
+        }
+        .word.medium-confidence {
+            opacity: 0.8;
+        }
+        .word.high-confidence {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="visualizer-container">
+            <canvas id="visualizer"></canvas>
+        </div>
+        <div class="confidence">
+            <div class="confidence-bar" id="confidenceBar"></div>
+        </div>
+        <div class="status" id="status">Ready</div>
+        <div class="transcription" id="transcription"></div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        // Canvas setup
+        const canvas = document.getElementById('visualizer');
+        const canvasCtx = canvas.getContext('2d');
+        const confidenceBar = document.getElementById('confidenceBar');
+        const status = document.getElementById('status');
+        const transcription = document.getElementById('transcription');
+        
+        // Set canvas dimensions
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        // Initialize visualizer
+        function drawVisualizer(audioData) {
+            canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background
+            canvasCtx.fillStyle = '#111';
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (!audioData || !audioData.length) {
+                // Draw idle state
+                const centerY = canvas.height / 2;
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(0, centerY);
+                canvasCtx.lineTo(canvas.width, centerY);
+                canvasCtx.strokeStyle = '#333';
+                canvasCtx.lineWidth = 2;
+                canvasCtx.stroke();
+                return;
+            }
+            
+            // Draw waveform
+            const sliceWidth = canvas.width / audioData.length;
+            let x = 0;
+            
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(0, canvas.height / 2);
+            
+            for (let i = 0; i < audioData.length; i++) {
+                const v = audioData[i] / 128.0;
+                const y = v * canvas.height / 2;
+                
+                canvasCtx.lineTo(x, y);
+                x += sliceWidth;
+            }
+            
+            canvasCtx.lineTo(canvas.width, canvas.height / 2);
+            canvasCtx.strokeStyle = '#0071e3';
+            canvasCtx.lineWidth = 2;
+            canvasCtx.stroke();
+        }
+        
+        // Update confidence bar
+        function updateConfidence(confidence) {
+            const percentage = confidence * 100;
+            confidenceBar.style.width = `${percentage}%`;
+            
+            // Change color based on confidence
+            if (percentage < 50) {
+                confidenceBar.style.backgroundColor = '#ff3b30';
+            } else if (percentage < 80) {
+                confidenceBar.style.backgroundColor = '#ffcc00';
+            } else {
+                confidenceBar.style.backgroundColor = '#34c759';
+            }
+        }
+        
+        // Update transcription
+        function updateTranscription(text, wordConfidences) {
+            transcription.innerHTML = '';
+            
+            if (!text) return;
+            
+            const words = text.split(' ');
+            words.forEach((word, index) => {
+                const confidence = wordConfidences && wordConfidences[index] ? wordConfidences[index] : 0.8;
+                const span = document.createElement('span');
+                span.textContent = word + ' ';
+                span.className = 'word';
+                
+                if (confidence < 0.6) {
+                    span.classList.add('low-confidence');
+                } else if (confidence < 0.8) {
+                    span.classList.add('medium-confidence');
+                } else {
+                    span.classList.add('high-confidence');
+                }
+                
+                transcription.appendChild(span);
+            });
+        }
+        
+        // Listen for audio data from main process
+        ipcRenderer.on('audio-data', (event, data) => {
+            drawVisualizer(data.audioData);
+        });
+        
+        // Listen for transcription updates
+        ipcRenderer.on('transcription', (event, data) => {
+            updateTranscription(data.text, data.wordConfidences);
+            updateConfidence(data.confidence);
+        });
+        
+        // Listen for status updates
+        ipcRenderer.on('status', (event, data) => {
+            status.textContent = data.status;
+            if (data.status === 'Recording') {
+                status.classList.add('recording');
+            } else {
+                status.classList.remove('recording');
+            }
+        });
+        
+        // Initial draw
+        drawVisualizer(null);
+    </script>
+</body>
+</html> 

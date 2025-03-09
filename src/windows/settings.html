@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech-to-Text Settings</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .section {
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e5e5e5;
+        }
+        .section:last-child {
+            border-bottom: none;
+        }
+        h2 {
+            margin-top: 0;
+            color: #1d1d1f;
+            font-size: 18px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d2d2d7;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        input[type="number"] {
+            width: 80px;
+        }
+        .hotkey-input {
+            background: #f5f5f7;
+            padding: 8px;
+            border: 1px solid #d2d2d7;
+            border-radius: 6px;
+            font-family: monospace;
+            margin-top: 4px;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .hotkey-input:focus, .hotkey-input:hover {
+            outline: none;
+            border-color: #0071e3;
+            background-color: #f0f0f2;
+        }
+        .hotkey-input.recording {
+            background-color: #ffe0e0;
+            border-color: #ff3b30;
+        }
+        .help-text {
+            display: block;
+            font-size: 12px;
+            color: #86868b;
+            margin-top: 4px;
+        }
+        .secondary-button {
+            background: #e5e5ea;
+            color: #1d1d1f;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        .secondary-button:hover {
+            background: #d1d1d6;
+        }
+        .checkbox-group {
+            margin: 8px 0;
+        }
+        button {
+            background: #0071e3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0077ed;
+        }
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            background: #34c759;
+            color: white;
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .notification.show {
+            opacity: 1;
+        }
+        .permission-dialog {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .permission-dialog-content {
+            background-color: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        .permission-dialog h3 {
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+        .permission-dialog p {
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        .permission-dialog-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        .permission-dialog-buttons button {
+            min-width: 100px;
+        }
+        .permission-dialog-buttons .secondary-button {
+            background-color: #e5e5ea;
+            color: #1d1d1f;
+        }
+        .permission-instructions {
+            margin-top: 16px;
+            padding: 12px;
+            background-color: #f2f2f7;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .permission-instructions h4 {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+        .permission-instructions ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .permission-instructions li {
+            margin-bottom: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="section">
+            <h2>Hotkeys</h2>
+            <div class="form-group">
+                <label>Start Text Field Dictation</label>
+                <div class="hotkey-input" id="hotkeyTextFieldStart" tabindex="0">Alt+Shift+D</div>
+                <small class="help-text">Click to change. Press the desired key combination.</small>
+            </div>
+            <div class="form-group">
+                <label>Stop Text Field Dictation</label>
+                <div class="hotkey-input" id="hotkeyTextFieldStop" tabindex="0">Alt+Shift+F</div>
+                <small class="help-text">Click to change. Press the desired key combination.</small>
+            </div>
+            <div class="form-group">
+                <button class="secondary-button" id="resetHotkeys">Reset to Defaults</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Audio Settings</h2>
+            <div class="form-group">
+                <label for="audioSource">Microphone</label>
+                <select id="audioSource" class="select-input">
+                    <option value="default">Default Microphone</option>
+                    <!-- Additional microphones will be populated dynamically -->
+                </select>
+                <small class="help-text">Select the microphone you want to use for dictation.</small>
+                <button class="secondary-button" id="refreshMicrophones" style="margin-top: 8px;">Refresh Microphone List</button>
+            </div>
+            <div class="form-group">
+                <label for="confidenceThreshold">Minimum Confidence Threshold (%)</label>
+                <input type="number" id="confidenceThreshold" min="0" max="100" value="80" 
+                       title="Set the minimum confidence threshold for transcription" 
+                       placeholder="Enter confidence threshold (0-100)">
+            </div>
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="noiseReduction" checked>
+                    Enable Noise Reduction
+                </label>
+            </div>
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="echoCancellation" checked>
+                    Enable Echo Cancellation
+                </label>
+            </div>
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="autoGainControl" checked>
+                    Enable Auto Gain Control
+                </label>
+            </div>
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="realAudioProcessing" checked>
+                    Use Real-Time Audio Processing
+                </label>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Text Injection</h2>
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="autoInject" checked>
+                    Auto-inject Text
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="injectionDelay">Injection Delay (ms)</label>
+                <input type="number" id="injectionDelay" min="0" value="100" 
+                       title="Set delay before injecting text" 
+                       placeholder="Enter delay in milliseconds">
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Voice-to-Text Options</h2>
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="textFieldEnabled" checked>
+                    Enable Voice-to-Text in Text Fields
+                </label>
+            </div>
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="autoStopDictation" checked>
+                    Auto-stop Dictation After Silence (5 seconds)
+                </label>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Notifications</h2>
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="showNotifications" checked>
+                    Show Desktop Notifications
+                </label>
+            </div>
+            <div class="checkbox-group">
+                <label>
+                    <input type="checkbox" id="playSound" checked>
+                    Play Sound on Events
+                </label>
+            </div>
+        </div>
+
+        <button onclick="saveSettings()">Save Settings</button>
+    </div>
+
+    <div class="notification" id="notification">Settings saved successfully!</div>
+
+    <div class="permission-dialog" id="permissionDialog">
+        <div class="permission-dialog-content">
+            <h3>Microphone Access Required</h3>
+            <p>This app needs access to your microphone for speech-to-text functionality. Please grant microphone access to continue.</p>
+            <div class="permission-instructions">
+                <h4>Instructions</h4>
+                <ul>
+                    <li>Ensure your microphone is connected and recognized by your device.</li>
+                    <li>Grant access if prompted by your operating system.</li>
+                    <li>If you've previously denied access, you'll need to change your system settings.</li>
+                </ul>
+            </div>
+            <div class="permission-dialog-buttons">
+                <button class="secondary-button">Cancel</button>
+                <button>Grant Access</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        // Load current settings
+        document.addEventListener('DOMContentLoaded', () => {
+            ipcRenderer.send('get-settings');
+            // Populate microphone list on load
+            populateMicrophoneList();
+        });
+
+        // Function to populate the microphone list
+        async function populateMicrophoneList() {
+            try {
+                const audioSourceSelect = document.getElementById('audioSource');
+                // Clear existing options except the default
+                while (audioSourceSelect.options.length > 1) {
+                    audioSourceSelect.remove(1);
+                }
+                
+                // Check if navigator.mediaDevices is available
+                if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                    throw new Error('Media Devices API not supported in your browser');
+                }
+                
+                // Request permission if needed
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    // Stop the stream immediately after getting permission
+                    stream.getTracks().forEach(track => track.stop());
+                } catch (permissionError) {
+                    console.error('Microphone permission denied:', permissionError);
+                    const option = document.createElement('option');
+                    option.text = '⚠️ Microphone access denied - check permissions';
+                    option.disabled = true;
+                    audioSourceSelect.add(option);
+                    
+                    // Show permission dialog
+                    showPermissionDialog();
+                    return;
+                }
+                
+                // Get the list of audio input devices
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const audioInputDevices = devices.filter(device => device.kind === 'audioinput');
+                
+                if (audioInputDevices.length === 0) {
+                    const option = document.createElement('option');
+                    option.text = 'No microphones found';
+                    option.disabled = true;
+                    audioSourceSelect.add(option);
+                    return;
+                }
+                
+                // Add each microphone to the select element
+                audioInputDevices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Microphone ${audioSourceSelect.options.length}`;
+                    audioSourceSelect.add(option);
+                });
+                
+                // Select the currently configured microphone
+                const currentSettings = await new Promise(resolve => {
+                    ipcRenderer.once('settings', (event, settings) => {
+                        resolve(settings);
+                    });
+                    ipcRenderer.send('get-settings');
+                });
+                
+                if (currentSettings.audioSettings.deviceId) {
+                    audioSourceSelect.value = currentSettings.audioSettings.deviceId;
+                }
+            } catch (error) {
+                console.error('Error populating microphone list:', error);
+                alert(`Error loading microphones: ${error.message}`);
+            }
+        }
+        
+        // Function to show the permission dialog
+        function showPermissionDialog() {
+            const dialog = document.getElementById('permissionDialog');
+            dialog.style.display = 'flex';
+            
+            const buttons = dialog.querySelectorAll('button');
+            
+            // Cancel button
+            buttons[0].addEventListener('click', () => {
+                dialog.style.display = 'none';
+            });
+            
+            // Grant Access button
+            buttons[1].addEventListener('click', async () => {
+                dialog.style.display = 'none';
+                
+                try {
+                    // Try to get permission again
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    // Refresh the microphone list
+                    populateMicrophoneList();
+                } catch (error) {
+                    console.error('Failed to get microphone permission:', error);
+                    
+                    // Show OS-specific instructions
+                    const os = navigator.platform.toLowerCase();
+                    let instructions = '';
+                    
+                    if (os.includes('mac')) {
+                        instructions = `
+                            <h4>macOS Instructions:</h4>
+                            <ol>
+                                <li>Click on the Apple menu and select "System Preferences"</li>
+                                <li>Click on "Security & Privacy"</li>
+                                <li>Select the "Privacy" tab</li>
+                                <li>Select "Microphone" from the left sidebar</li>
+                                <li>Ensure the checkbox next to this app is checked</li>
+                                <li>Restart the app after granting permission</li>
+                            </ol>
+                        `;
+                    } else if (os.includes('win')) {
+                        instructions = `
+                            <h4>Windows Instructions:</h4>
+                            <ol>
+                                <li>Click on the Start menu and select "Settings"</li>
+                                <li>Click on "Privacy"</li>
+                                <li>Select "Microphone" from the left sidebar</li>
+                                <li>Ensure "Allow apps to access your microphone" is turned on</li>
+                                <li>Make sure this app is allowed in the list below</li>
+                                <li>Restart the app after granting permission</li>
+                            </ol>
+                        `;
+                    } else {
+                        instructions = `
+                            <h4>Instructions:</h4>
+                            <p>Please check your system settings to allow microphone access for this application.</p>
+                        `;
+                    }
+                    
+                    // Show a more detailed dialog with OS-specific instructions
+                    const instructionsDiv = dialog.querySelector('.permission-instructions');
+                    instructionsDiv.innerHTML = instructions;
+                    dialog.style.display = 'flex';
+                }
+            });
+        }
+        
+        // Hide the permission dialog initially
+        document.getElementById('permissionDialog').style.display = 'none';
+
+        // Refresh microphone list when button is clicked
+        document.getElementById('refreshMicrophones').addEventListener('click', () => {
+            populateMicrophoneList();
+        });
+
+        // Handle focus-section message
+        ipcRenderer.on('focus-section', (event, sectionId) => {
+            // Find the section by iterating through all h2 elements
+            const allHeadings = document.querySelectorAll('.section h2');
+            const sectionName = sectionId.charAt(0).toUpperCase() + sectionId.slice(1);
+            
+            for (const heading of allHeadings) {
+                if (heading.textContent.trim() === sectionName) {
+                    const section = heading.parentElement;
+                    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // Add a highlight effect
+                    section.style.backgroundColor = '#f0f9ff';
+                    setTimeout(() => {
+                        section.style.backgroundColor = '';
+                    }, 2000);
+                    break;
+                }
+            }
+        });
+
+        ipcRenderer.on('settings', (event, settings) => {
+            // Set hotkeys
+            document.getElementById('hotkeyTextFieldStart').textContent = settings.textField?.hotkeyStart || 'Alt+Shift+D';
+            document.getElementById('hotkeyTextFieldStop').textContent = settings.textField?.hotkeyStop || 'Alt+Shift+F';
+            
+            // Set audio settings
+            document.getElementById('confidenceThreshold').value = settings.minimumConfidence * 100;
+            document.getElementById('noiseReduction').checked = settings.audioSettings.noiseReduction;
+            document.getElementById('echoCancellation').checked = settings.audioSettings.echoCancellation;
+            document.getElementById('autoGainControl').checked = settings.audioSettings.autoGainControl;
+            document.getElementById('realAudioProcessing').checked = settings.textField?.realAudioProcessing || true;
+            
+            // Set text injection settings
+            document.getElementById('autoInject').checked = settings.autoInject;
+            document.getElementById('injectionDelay').value = settings.injectionDelay;
+            
+            // Set voice-to-text options
+            document.getElementById('textFieldEnabled').checked = settings.textField?.enabled || true;
+            document.getElementById('autoStopDictation').checked = settings.textField?.autoStop || true;
+            
+            // Set notification settings
+            document.getElementById('showNotifications').checked = settings.notifications.show;
+            document.getElementById('playSound').checked = settings.notifications.sound;
+        });
+
+        // Hotkey recording
+        const hotkeyElements = ['hotkeyTextFieldStart', 'hotkeyTextFieldStop'];
+        hotkeyElements.forEach(id => {
+            const element = document.getElementById(id);
+            let recording = false;
+
+            element.addEventListener('click', () => {
+                if (!recording) {
+                    recording = true;
+                    element.textContent = 'Press keys...';
+                    element.classList.add('recording');
+                }
+            });
+
+            element.addEventListener('keydown', (e) => {
+                if (recording) {
+                    e.preventDefault();
+                    const modifiers = [];
+                    if (e.ctrlKey) modifiers.push('Ctrl');
+                    if (e.altKey) modifiers.push('Alt');
+                    if (e.shiftKey) modifiers.push('Shift');
+                    if (e.metaKey) modifiers.push('Cmd');
+                    
+                    const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+                    const hotkey = [...modifiers, key].join('+');
+                    
+                    element.textContent = hotkey;
+                    element.classList.remove('recording');
+                    recording = false;
+                }
+            });
+        });
+
+        // Reset hotkeys to defaults
+        document.getElementById('resetHotkeys').addEventListener('click', () => {
+            document.getElementById('hotkeyTextFieldStart').textContent = 'Alt+Shift+T';
+            document.getElementById('hotkeyTextFieldStop').textContent = 'Alt+Shift+U';
+        });
+
+        function saveSettings() {
+            const settings = {
+                minimumConfidence: document.getElementById('confidenceThreshold').value / 100,
+                autoInject: document.getElementById('autoInject').checked,
+                audioSettings: {
+                    deviceId: document.getElementById('audioSource').value,
+                    noiseReduction: document.getElementById('noiseReduction').checked,
+                    echoCancellation: document.getElementById('echoCancellation').checked,
+                    autoGainControl: document.getElementById('autoGainControl').checked
+                },
+                injectionDelay: parseInt(document.getElementById('injectionDelay').value),
+                notifications: {
+                    show: document.getElementById('showNotifications').checked,
+                    sound: document.getElementById('playSound').checked
+                },
+                textField: {
+                    enabled: document.getElementById('textFieldEnabled').checked,
+                    hotkeyStart: document.getElementById('hotkeyTextFieldStart').textContent,
+                    hotkeyStop: document.getElementById('hotkeyTextFieldStop').textContent,
+                    autoStop: document.getElementById('autoStopDictation').checked,
+                    realAudioProcessing: document.getElementById('realAudioProcessing').checked
+                }
+            };
+
+            ipcRenderer.send('save-settings', settings);
+            showNotification();
+        }
+
+        function showNotification() {
+            const notification = document.getElementById('notification');
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 2000);
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Commands</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 40px);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .status {
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 500;
+            background-color: #e5e5e5;
+        }
+        .status.recording {
+            background-color: #ff3b30;
+            color: white;
+        }
+        .commands-container {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+        }
+        .commands-list {
+            flex: 1;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .command-form {
+            width: 300px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        .command-item {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background-color: #f5f5f7;
+            border-left: 4px solid #0071e3;
+        }
+        .command-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .command-triggers {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        .command-description {
+            font-size: 14px;
+            color: #333;
+        }
+        .command-actions {
+            margin-top: 8px;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d2d2d7;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        button {
+            background: #0071e3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0077ed;
+        }
+        button.secondary {
+            background: #e5e5e5;
+            color: #333;
+        }
+        button.secondary:hover {
+            background: #d5d5d5;
+        }
+        button.danger {
+            background: #ff3b30;
+        }
+        button.danger:hover {
+            background: #ff514a;
+        }
+        .log-container {
+            margin-top: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            height: 200px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .log-entry.info {
+            background-color: #e8f4fc;
+            border-left: 3px solid #0071e3;
+        }
+        .log-entry.success {
+            background-color: #e9f7ef;
+            border-left: 3px solid #34c759;
+        }
+        .log-entry.error {
+            background-color: #feeced;
+            border-left: 3px solid #ff3b30;
+        }
+        .log-entry.warning {
+            background-color: #fff8e6;
+            border-left: 3px solid #ffcc00;
+        }
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            background: #34c759;
+            color: white;
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .notification.show {
+            opacity: 1;
+        }
+        .notification.error {
+            background: #ff3b30;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Voice Commands</h1>
+            <div class="status" id="status">Ready</div>
+        </div>
+        
+        <div class="commands-container">
+            <div class="commands-list" id="commandsList">
+                <!-- Commands will be populated here -->
+            </div>
+            
+            <div class="command-form">
+                <h2>Add New Command</h2>
+                <div class="form-group">
+                    <label for="commandName">Command Name</label>
+                    <input type="text" id="commandName" placeholder="e.g., open-browser" title="Enter a unique identifier for the command">
+                </div>
+                <div class="form-group">
+                    <label for="commandTriggers">Trigger Phrases (comma separated)</label>
+                    <input type="text" id="commandTriggers" placeholder="e.g., open browser, launch browser" title="Enter phrases that will trigger this command">
+                </div>
+                <div class="form-group">
+                    <label for="commandDescription">Description</label>
+                    <textarea id="commandDescription" placeholder="Describe what this command does" title="Enter a description of what this command does"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="commandScript">AppleScript (optional)</label>
+                    <textarea id="commandScript" placeholder="tell application &quot;Safari&quot; to activate" title="Enter AppleScript to execute when this command is triggered"></textarea>
+                </div>
+                <button onclick="addCommand()">Add Command</button>
+            </div>
+        </div>
+        
+        <div class="log-container" id="logContainer">
+            <!-- Log entries will be added here -->
+        </div>
+    </div>
+    
+    <div class="notification" id="notification">Command added successfully!</div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        const applescript = require('applescript');
+        
+        // Load commands
+        document.addEventListener('DOMContentLoaded', () => {
+            ipcRenderer.send('get-commands');
+            addLogEntry('System initialized', 'info');
+        });
+        
+        // Listen for commands
+        ipcRenderer.on('commands', (event, commands) => {
+            renderCommands(commands);
+        });
+        
+        // Listen for status updates
+        ipcRenderer.on('status', (event, data) => {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = data.status;
+            if (data.status === 'Recording') {
+                statusElement.classList.add('recording');
+                addLogEntry('Recording started', 'info');
+            } else {
+                statusElement.classList.remove('recording');
+                if (data.status === 'Stopped') {
+                    addLogEntry('Recording stopped', 'info');
+                }
+            }
+        });
+        
+        // Listen for transcription updates
+        ipcRenderer.on('transcription', (event, data) => {
+            if (data.isCommand) {
+                addLogEntry(`Command detected: ${data.commandName}`, 'success');
+            } else {
+                addLogEntry(`Transcription: "${data.text}" (${Math.round(data.confidence * 100)}%)`, 'info');
+            }
+        });
+        
+        // Listen for command updates
+        ipcRenderer.on('command-update', (event, data) => {
+            if (data.type === 'executed') {
+                addLogEntry(`Executed command: ${data.command} (Triggered by: "${data.text}")`, 'success');
+            } else if (data.type === 'notFound') {
+                addLogEntry(`Command not found: "${data.text}"`, 'warning');
+            } else if (data.type === 'error') {
+                addLogEntry(`Error executing command ${data.command}: ${data.error}`, 'error');
+            }
+        });
+        
+        // Listen for command registration results
+        ipcRenderer.on('command-registered', (event, data) => {
+            if (data.success) {
+                showNotification('Command added successfully!');
+                clearForm();
+                ipcRenderer.send('get-commands');
+            } else {
+                showNotification(`Error: ${data.error}`, true);
+            }
+        });
+        
+        // Listen for command unregistration results
+        ipcRenderer.on('command-unregistered', (event, data) => {
+            if (data.success) {
+                showNotification('Command removed successfully!');
+                ipcRenderer.send('get-commands');
+            }
+        });
+        
+        // Render commands
+        function renderCommands(commands) {
+            const commandsList = document.getElementById('commandsList');
+            commandsList.innerHTML = '';
+            
+            if (commands.length === 0) {
+                commandsList.innerHTML = '<p>No commands registered yet.</p>';
+                return;
+            }
+            
+            commands.forEach(command => {
+                const commandElement = document.createElement('div');
+                commandElement.className = 'command-item';
+                
+                commandElement.innerHTML = `
+                    <div class="command-name">${command.name}</div>
+                    <div class="command-triggers">Triggers: ${command.triggers.join(', ')}</div>
+                    <div class="command-description">${command.description}</div>
+                    <div class="command-actions">
+                        <button class="danger" onclick="removeCommand('${command.name}')">Remove</button>
+                    </div>
+                `;
+                
+                commandsList.appendChild(commandElement);
+            });
+        }
+        
+        // Add a new command
+        function addCommand() {
+            const name = document.getElementById('commandName').value.trim();
+            const triggersText = document.getElementById('commandTriggers').value.trim();
+            const description = document.getElementById('commandDescription').value.trim();
+            const script = document.getElementById('commandScript').value.trim();
+            
+            if (!name || !triggersText || !description) {
+                showNotification('Please fill in all required fields', true);
+                return;
+            }
+            
+            const triggers = triggersText.split(',').map(t => t.trim()).filter(t => t);
+            
+            if (triggers.length === 0) {
+                showNotification('Please add at least one trigger phrase', true);
+                return;
+            }
+            
+            const command = {
+                name,
+                triggers,
+                description,
+                execute: script ? createScriptExecutor(script) : null
+            };
+            
+            ipcRenderer.send('register-command', command);
+        }
+        
+        // Create a function that executes the given AppleScript
+        function createScriptExecutor(script) {
+            return function() {
+                applescript.execString(script, (err, result) => {
+                    if (err) {
+                        console.error('Error executing AppleScript:', err);
+                    }
+                });
+            };
+        }
+        
+        // Remove a command
+        function removeCommand(name) {
+            if (confirm(`Are you sure you want to remove the command "${name}"?`)) {
+                ipcRenderer.send('unregister-command', name);
+            }
+        }
+        
+        // Add a log entry
+        function addLogEntry(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // Show notification
+        function showNotification(message, isError = false) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            
+            if (isError) {
+                notification.classList.add('error');
+            } else {
+                notification.classList.remove('error');
+            }
+            
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Clear form
+        function clearForm() {
+            document.getElementById('commandName').value = '';
+            document.getElementById('commandTriggers').value = '';
+            document.getElementById('commandDescription').value = '';
+            document.getElementById('commandScript').value = '';
+        }
+    </script>
+</body>
+</html> 

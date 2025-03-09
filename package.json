@@ -1,0 +1,51 @@
+{
+  "name": "whisper-clone",
+  "version": "1.0.0",
+  "description": "Speech-to-text application with background service",
+  "main": "dist/tray.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "tsc && electron .",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test-audio": "tsc && electron dist/test-audio.js"
+  },
+  "keywords": [
+    "speech-to-text",
+    "audio",
+    "transcription"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google-cloud/speech": "^5.0.0",
+    "@jitsi/electron-sdk": "^3.0.0",
+    "applescript": "^1.0.0",
+    "audio-recorder-polyfill": "^0.4.1",
+    "body-parser": "^1.20.3",
+    "canvas": "^3.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "electron": "^28.0.0",
+    "express": "^4.18.2",
+    "get-port": "^7.0.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "node-global-key-listener": "^0.1.1",
+    "node-notifier": "^10.0.1",
+    "web-audio-recorder-js": "^0.0.2",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/morgan": "^1.9.9",
+    "@types/multer": "^1.4.11",
+    "@types/node": "^20.11.24",
+    "@types/node-notifier": "^8.0.5",
+    "electron-rebuild": "^3.2.9",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.3"
+  }
+}

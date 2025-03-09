@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Capture</title>
+</head>
+<body>
+    <div id="status">Initializing audio capture...</div>
+    
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        // Audio processing variables
+        let audioContext;
+        let sourceNode;
+        let processorNode;
+        let stream;
+        let mediaRecorder;
+        let audioChunks = [];
+        
+        // Helper function to report status
+        function reportStatus(status) {
+            document.getElementById('status').textContent = status;
+            ipcRenderer.send('audio-status', status);
+            console.log(status);
+        }
+        
+        // Helper function to report errors
+        function reportError(message, error) {
+            const errorMessage = error ? `${message}: ${error.message || error}` : message;
+            document.getElementById('status').textContent = 'Error: ' + errorMessage;
+            console.error(errorMessage, error);
+            ipcRenderer.send('audio-error', errorMessage);
+        }
+        
+        // Listen for start-audio-capture message from main process
+        ipcRenderer.on('start-audio-capture', async (event, data) => {
+            try {
+                reportStatus('Starting desktop audio capture...');
+                
+                // Get audio settings from main process
+                const settings = data.settings || {
+                    noiseReduction: true,
+                    echoCancellation: true,
+                    autoGainControl: true,
+                    sampleRate: 16000,
+                    channels: 1
+                };
+                
+                // Initialize audio context with error handling
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                        sampleRate: settings.sampleRate || 16000
+                    });
+                    
+                    if (!audioContext) {
+                        throw new Error('Failed to create AudioContext');
+                    }
+                } catch (error) {
+                    reportError('Failed to initialize AudioContext', error);
+                    return;
+                }
+                
+                // Request screen sources from main process
+                let sources;
+                try {
+                    reportStatus('Requesting screen sources...');
+                    sources = await ipcRenderer.invoke('get-desktop-sources');
+                    
+                    if (!sources || sources.length === 0) {
+                        throw new Error('No screen sources found');
+                    }
+                } catch (error) {
+                    reportError('Failed to get screen sources', error);
+                    return;
+                }
+                
+                const source = sources[0];
+                reportStatus(`Using screen source: ${source.id}`);
+                
+                // Create constraints for getUserMedia
+                const constraints = {
+                    audio: {
+                        mandatory: {
+                            chromeMediaSource: 'desktop',
+                            chromeMediaSourceId: source.id
+                        }
+                    },
+                    video: false
+                };
+                
+                // Get the media stream with error handling
+                try {
+                    reportStatus('Requesting media stream...');
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    
+                    if (!stream) {
+                        throw new Error('Failed to get media stream');
+                    }
+                } catch (error) {
+                    reportError('Failed to get desktop audio stream', error);
+                    return;
+                }
+                
+                // Set up audio processing
+                try {
+                    setupAudioProcessing(stream, settings);
+                    reportStatus('Desktop audio capture active');
+                } catch (error) {
+                    reportError('Failed to set up audio processing', error);
+                }
+            } catch (error) {
+                reportError('Error starting desktop audio capture', error);
+            }
+        });
+        
+        // Listen for start-microphone-capture message from main process
+        ipcRenderer.on('start-microphone-capture', async (event, data) => {
+            try {
+                reportStatus('Starting microphone audio capture...');
+                
+                // Get audio settings from main process
+                const settings = data.settings || {
+                    deviceId: 'default',
+                    noiseReduction: true,
+                    echoCancellation: true,
+                    autoGainControl: true,
+                    sampleRate: 16000,
+                    channels: 1
+                };
+                
+                // Initialize audio context with error handling
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                        sampleRate: settings.sampleRate || 16000
+                    });
+                    
+                    if (!audioContext) {
+                        throw new Error('Failed to create AudioContext');
+                    }
+                } catch (error) {
+                    reportError('Failed to initialize AudioContext', error);
+                    return;
+                }
+                
+                // Create constraints for getUserMedia
+                const constraints = {
+                    audio: {
+                        deviceId: settings.deviceId ? { exact: settings.deviceId } : undefined,
+                        echoCancellation: settings.echoCancellation,
+                        noiseSuppression: settings.noiseReduction,
+                        autoGainControl: settings.autoGainControl
+                    },
+                    video: false
+                };
+                
+                // Get the media stream with error handling
+                try {
+                    reportStatus('Requesting microphone access...');
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    
+                    if (!stream) {
+                        throw new Error('Failed to get media stream');
+                    }
+                } catch (error) {
+                    reportError('Failed to get microphone stream', error);
+                    return;
+                }
+                
+                // Set up audio processing
+                try {
+                    setupAudioProcessing(stream, settings);
+                    reportStatus('Microphone audio capture active');
+                } catch (error) {
+                    reportError('Failed to set up audio processing', error);
+                }
+            } catch (error) {
+                reportError('Error starting microphone audio capture', error);
+            }
+        });
+        
+        // Function to set up audio processing
+        function setupAudioProcessing(stream, settings) {
+            try {
+                // Create a source node from the stream
+                sourceNode = audioContext.createMediaStreamSource(stream);
+                
+                // Create a processor node
+                processorNode = audioContext.createScriptProcessor(4096, 1, 1);
+                
+                // Connect the nodes
+                sourceNode.connect(processorNode);
+                processorNode.connect(audioContext.destination);
+                
+                // Process audio data
+                processorNode.onaudioprocess = (e) => {
+                    try {
+                        const audioData = e.inputBuffer.getChannelData(0);
+                        // Send audio data to main process
+                        ipcRenderer.send('audio-data', Array.from(audioData));
+                    } catch (error) {
+                        reportError('Error processing audio data', error);
+                    }
+                };
+                
+                // Set up MediaRecorder as a fallback
+                try {
+                    if (typeof MediaRecorder !== 'undefined') {
+                        const options = { mimeType: 'audio/webm' };
+                        mediaRecorder = new MediaRecorder(stream, options);
+                        
+                        mediaRecorder.ondataavailable = (event) => {
+                            if (event.data.size > 0) {
+                                audioChunks.push(event.data);
+                            }
+                        };
+                        
+                        mediaRecorder.onstop = () => {
+                            // Process chunks if needed
+                            audioChunks = [];
+                        };
+                        
+                        // Start recording in 100ms chunks
+                        mediaRecorder.start(100);
+                    }
+                } catch (error) {
+                    console.warn('MediaRecorder not available or failed to initialize', error);
+                    // Continue without MediaRecorder, using ScriptProcessor
+                }
+                
+                reportStatus('Audio processing set up successfully');
+            } catch (error) {
+                reportError('Error setting up audio processing', error);
+                throw error; // Re-throw to be caught by the caller
+            }
+        }
+        
+        // Clean up when window is closed
+        window.addEventListener('beforeunload', () => {
+            try {
+                reportStatus('Cleaning up audio resources...');
+                
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+                
+                if (processorNode) {
+                    processorNode.disconnect();
+                }
+                
+                if (sourceNode) {
+                    sourceNode.disconnect();
+                }
+                
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
+                if (audioContext) {
+                    audioContext.close();
+                }
+                
+                reportStatus('Audio resources cleaned up');
+            } catch (error) {
+                console.error('Error during cleanup', error);
+            }
+        });
+        
+        // Report initial status
+        reportStatus('Audio capture page loaded, waiting for instructions...');
+    </script>
+</body>
+</html> 

@@ -14,22 +14,26 @@ A powerful speech-to-text application that captures audio from your desktop or m
 ## Installation
 
 1. Clone the repository:
+
    ```
    git clone https://github.com/yourusername/whisper-clone.git
    cd whisper-clone
    ```
 
 2. Install dependencies:
+
    ```
    npm install
    ```
 
 3. Build the application:
+
    ```
    npm run build
    ```
 
 4. Start the application:
+
    ```
    npm start
    ```
@@ -78,4 +82,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [Electron](https://www.electronjs.org/) - Cross-platform desktop app framework
 - [Node.js](https://nodejs.org/) - JavaScript runtime
 - [TypeScript](https://www.typescriptlang.org/) - Typed JavaScript
-- [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) - Audio processing 
+- [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) - Audio processing
